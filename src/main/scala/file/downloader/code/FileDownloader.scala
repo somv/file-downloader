@@ -17,11 +17,14 @@ object FileDownloader extends Downloader {
 
     val conf = ConfigFactory.load
 
-    LOCATION = try {
+    val configuredLocation = try {
       conf.getString("location")
     } catch {
       case exception: Exception => ""
     }
+
+    LOCATION = getParentDirPath(configuredLocation)
+    println()
 
     READ_TIMEOUT = try {
       conf.getInt("readTimeOut")
@@ -29,10 +32,8 @@ object FileDownloader extends Downloader {
       case exception: Exception => 10000
     }
 
-    println(s"********** Downloads can be found at ${getParentDirPath(LOCATION)} **********")
-
-//    val link = "https://www.google.com/" // "ftp://speedtest.tele2.net/512KB.zip"
-//    download(link)
+    println(s"********** Downloads can be found at ${LOCATION} **********")
+    println()
 
     println("Enter the number of sources that you want to test.")
     val n = scala.io.StdIn.readInt()
@@ -48,11 +49,7 @@ object FileDownloader extends Downloader {
 
     println()
     for(source <- sources) {
-      println(s"Downloading source ${source}")
       download(source)
-      println()
-      println("Download complete.")
-      println()
     }
 
   }
@@ -62,19 +59,24 @@ object FileDownloader extends Downloader {
     */
   override def download(link: String): Unit = {
 
-    val parentDir = new File(getParentDirPath(LOCATION))
-
+    val parentDir = new File(LOCATION)
+    println(s"Downloading source: ${link}")
     try {
       download(link.trim, parentDir)
+      println()
+      println("Download complete.")
+      println()
     } catch {
       case exception: Exception =>
         println(s"Exception occurred. Message: ${exception.getMessage}")
+        println("Download aborted.")
+        println()
     }
 
   }
 
   /**
-    * @param link
+    * @param link: Link of the file to be downloaded.
     * @return File name from the URL (string after the last forward slash),
     *         if it is not present in the URL then will return index.html
     */
@@ -89,18 +91,18 @@ object FileDownloader extends Downloader {
     * @param location: Dir location where the downloaded file has to be saved.
     * @return Parent directory path based on the output location provided in application.conf file
     */
-  override protected def getParentDirPath(location: String): String = {
+  override def getParentDirPath(location: String): String = {
     try {
       val locationType = fileSystemManager.resolveFile(location).getType
       if(locationType.equals("imaginary") | locationType.equals("file")) {
-        println(s"Location for download in the configuration is not correct. downloading in the directory ${System.getProperty("user.dir")}")
+        println(s"Bad location for download in the configuration file. downloading in the directory ${System.getProperty("user.dir")}")
         return System.getProperty("user.dir")
       } else {
         location
       }
     } catch {
       case exception: Exception =>
-        println(s"Exception occurred while accessing the given location (${exception.getMessage}). Downloaded file can be found at (${System.getProperty("user.dir")}).")
+        println(s"Bad location for download in the configuration file. Exception: (${exception.getMessage}). Downloaded file can be found at (${System.getProperty("user.dir")}).")
         System.getProperty("user.dir")
     }
   }
@@ -111,7 +113,7 @@ object FileDownloader extends Downloader {
     * @param parentDir: Dir where downloaded file is supposed to be saved.
     * @return Checks if there is enough space available on the file system for the download.
     */
-  override def isEnoughSpace(fileObject: FileObject, parentDir: File): Boolean = {
+  override protected def isEnoughSpace(fileObject: FileObject, parentDir: File): Boolean = {
     val freeSpace = parentDir.getFreeSpace
     val contentLength = fileObject.getContent.getSize
     if(freeSpace >= contentLength) true else false
@@ -124,7 +126,7 @@ object FileDownloader extends Downloader {
     * @param out: Output stream
     *
     */
-  override def copy(in: InputStream, out: OutputStream, fileObject: FileObject) : Unit = {
+  override protected def copy(in: InputStream, out: OutputStream, fileObject: FileObject) : Unit = {
     val buf = new Array[Byte](1024)
     val totalBytes = fileObject.getContent.getSize
     val percentageSet: scala.collection.mutable.Set[Int] = scala.collection.mutable.Set()
@@ -196,12 +198,7 @@ object FileDownloader extends Downloader {
         fileObject.close()
       }
     } else {
-      dir.getFreeSpace match {
-        case 0 =>
-          throw new ParentDirNotFoundException("The directory location does not exists on the file system.")
-        case _ =>
-          throw new NotEnoughSpaceOnDiskException("Not enough space on the disk.")
-      }
+      throw new NotEnoughSpaceOnDiskException("Not enough space on the disk.")
     }
     outputFile
   }

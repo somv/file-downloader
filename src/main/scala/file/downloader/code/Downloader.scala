@@ -33,7 +33,7 @@ trait Downloader {
     * Copies input stream to output stream with buffer array of size 1024
     * output stream writes data to file system
     */
-  def copy(in: InputStream, out: OutputStream, fileObject: FileObject) : Unit
+  protected def copy(in: InputStream, out: OutputStream, fileObject: FileObject) : Unit
 
   /**
     * @return Checks if there is enough space available on the file system for the download
@@ -48,7 +48,7 @@ trait Downloader {
   /**
     * @return Parent directory path based on the output location provided in application.conf file
     */
-  protected def getParentDirPath(location: String): String
+  def getParentDirPath(location: String): String
 
   /**
     * Writes progress in percentage on the console (e.g 10% 20% up to 100%)
